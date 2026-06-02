@@ -6,13 +6,18 @@ const config = require('./config.json');
 const getYad2Response = async (url) => {
     const requestOptions = {
         method: 'GET',
-        redirect: 'follow'
+        redirect: 'follow',
+        // כדאי להוסיף 'User-Agent' כדי להיראות קצת יותר כמו דפדפן רגיל ולא כמו בוט
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
     };
     try {
         const res = await fetch(url, requestOptions)
+        console.log(`HTTP Status received: ${res.status}`); // מדפיס את קוד התשובה
         return await res.text()
     } catch (err) {
-        console.log(err)
+        console.log("Fetch error:", err)
     }
 }
 
@@ -21,16 +26,29 @@ const scrapeItemsAndExtractImgUrls = async (url) => {
     if (!yad2Html) {
         throw new Error("Could not get Yad2 response");
     }
+    
     const $ = cheerio.load(yad2Html);
     const title = $("title")
     const titleText = title.first().text();
-    if (titleText === "ShieldSquare Captcha") {
-        throw new Error("Bot detection");
+    
+    // הדפסה של הכותרת של הדף - זה יעזור לנו לדעת אם חסמו אותנו
+    console.log(`Page title is: "${titleText}"`); 
+    
+    if (titleText === "ShieldSquare Captcha" || titleText.includes("Just a moment") || titleText.includes("Access Denied")) {
+        throw new Error("Bot detection - Access blocked by Yad2");
     }
+
     const $feedItems = $(".feeditem").find(".pic");
-    if (!$feedItems) {
-        throw new Error("Could not find feed items");
+    
+    // הדפסה שתראה כמה פריטים עם המחלקה הזו באמת נמצאו
+    console.log(`Found ${$feedItems.length} elements with '.feeditem .pic'`); 
+    
+    if ($feedItems.length === 0) {
+        // הדפסת דוגמה של ה-HTML במקרה שלא מצאנו כלום, כדי שנוכל לחקור מה השתנה
+        console.log("No items found. Here is a snippet of the HTML:");
+        console.log(yad2Html.substring(0, 500)); 
     }
+
     const imageUrls = []
     $feedItems.each((_, elm) => {
         const imgSrc = $(elm).find("img").attr('src');
@@ -38,6 +56,8 @@ const scrapeItemsAndExtractImgUrls = async (url) => {
             imageUrls.push(imgSrc)
         }
     })
+    
+    console.log(`Extracted ${imageUrls.length} image URLs.`);
     return imageUrls;
 }
 
