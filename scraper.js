@@ -12,7 +12,7 @@ const API_HEADERS = {
     "Cookie": "guest_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwYXlsb2FkIjp7InV1aWQiOiI4Nzc5NGZhZS05Y2Q2LTRmZDUtYTc1Yy1mNTRiNDUxNDZkNTAifSwiaWF0IjoxNzgwNDA5NTE5LCJleHAiOjE4MTE5NjcxMTl9.s70RJMZ0hL6TyEBCQecFJ1dvj6P-vCln5FuhqDivvkg; favorites_userid=7c3335b7-b8e7-4bac-b001-7810782c8d13"
 };
 
-// --- פונקציית הקסם: ממירה לינק של דפדפן ללינק של האפליקציה! ---
+// פונקציה שממירה לינק של דפדפן ללינק של האפליקציה
 const convertWebToApiUrl = (webUrl) => {
     try {
         const urlObj = new URL(webUrl);
@@ -20,7 +20,6 @@ const convertWebToApiUrl = (webUrl) => {
         
         params.set('pageNumber', '1');
         params.set('itemsPerPage', '40');
-        // הוספנו את פרמטר הזמן שהאפליקציה שולחת כדי למנוע שגיאות חסר
         params.set('scrollSessionId', new Date().toISOString());
         
         let endpoint = 'recommerce-feed/search';
@@ -42,7 +41,6 @@ const fetchYad2Api = async (url) => {
     try {
         const res = await fetch(url, { method: 'GET', headers: API_HEADERS });
         if (!res.ok) {
-            // כאן הוספתי את הקסם: אנחנו שולפים את טקסט השגיאה שהשרת מחזיר
             const errorText = await res.text();
             throw new Error(`HTTP Error: ${res.status} | Server says: ${errorText}`);
         }
@@ -87,8 +85,6 @@ const checkIfHasNewItem = async (items, topic) => {
     return newItems;
 };
 
-/ --- החלף את שתי הפונקציות האלו בסוף קובץ ה-scraper.js ---
-
 const sendEmail = async (subject, htmlContent) => {
     const transporter = nodemailer.createTransport({
         service: 'gmail',
@@ -101,7 +97,7 @@ const sendEmail = async (subject, htmlContent) => {
         from: process.env.EMAIL_USER,
         to: process.env.EMAIL_TO,
         subject: subject,
-        html: htmlContent // שינינו מ-text ל-html!
+        html: htmlContent
     });
 };
 
@@ -115,14 +111,12 @@ const scrape = async (topic, webUrl) => {
         const newItems = await checkIfHasNewItem(items, topic);
 
         if (newItems.length > 0) {
-            // בונים HTML עבור כל מודעה
             const msgLines = newItems.map((item, index) => {
                 const title = item.title || "ללא כותרת";
                 const price = item.price ? `${item.price} ₪` : "לא צוין מחיר";
                 const city = item.address && item.address.city ? item.address.city.textHeb : "עיר לא ידועה";
                 const link = item.urlIdentifier ? `https://www.yad2.co.il/item/${item.urlIdentifier}` : "";
                 
-                // שולפים את התמונה הראשונה אם קיימת
                 const imageUrl = (item.images && item.images.length > 0) ? item.images[0] : null;
                 const imageHtml = imageUrl ? `<img src="${imageUrl}" style="max-width: 250px; border-radius: 8px; margin-top: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />` : `<p style="color: #888;"><em>אין תמונה למודעה זו</em></p>`;
 
@@ -136,7 +130,6 @@ const scrape = async (topic, webUrl) => {
                 `;
             });
 
-            // עוטפים את הכל במבנה של עמוד מעוצב מימין לשמאל
             const htmlMsg = `
             <div style="direction: rtl; text-align: right; font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; background-color: #fcfcfc;">
                 <h2 style="color: #333; text-align: center;">מצאנו ${newItems.length} פריטים חדשים בחיפוש שלך! 🎉</h2>
@@ -158,6 +151,7 @@ const scrape = async (topic, webUrl) => {
         await sendEmail(`[Yad2] שגיאה בסריקה: ${topic} 😥`, `<div style="direction: rtl;"><h3>שגיאה בסריקת ${topic}</h3><p>${e.message}</p></div>`);
     }
 };
+
 const program = async () => {
     for (const project of config.projects) {
         if (project.disabled) {
@@ -165,7 +159,6 @@ const program = async () => {
             continue;
         }
         await scrape(project.topic, project.url);
-        // השהייה קטנה בין חיפושים כדי לא לחסום את השרת
         await new Promise(resolve => setTimeout(resolve, 2000));
     }
 };
