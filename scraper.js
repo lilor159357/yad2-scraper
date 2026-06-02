@@ -16,23 +16,21 @@ const API_HEADERS = {
 const convertWebToApiUrl = (webUrl) => {
     try {
         const urlObj = new URL(webUrl);
-        // שולפים את כל הסינונים (מחיר, טקסט, אזור) מהלינק המקורי
         const params = new URLSearchParams(urlObj.search);
         
-        // מוסיפים את פרמטרי החובה שהאפליקציה מצפה לקבל
         params.set('pageNumber', '1');
         params.set('itemsPerPage', '40');
+        // הוספנו את פרמטר הזמן שהאפליקציה שולחת כדי למנוע שגיאות חסר
+        params.set('scrollSessionId', new Date().toISOString());
         
-        let endpoint = 'recommerce-feed/search'; // ברירת המחדל לקטגוריית "יד שנייה"
+        let endpoint = 'recommerce-feed/search';
         
-        // ניתוב חכם למקרה שתחפש בקטגוריות אחרות:
         if (urlObj.pathname.includes('/realestate/')) {
             endpoint = 'realestate-feed/search';
         } else if (urlObj.pathname.includes('/vehicles/')) {
             endpoint = 'vehicles-feed/search';
         }
         
-        // מרכיבים בחזרה את הכתובת הסודית
         return `https://gw.yad2.co.il/${endpoint}?${params.toString()}`;
     } catch (e) {
         console.error("Invalid URL provided, falling back to original:", webUrl);
@@ -43,7 +41,11 @@ const convertWebToApiUrl = (webUrl) => {
 const fetchYad2Api = async (url) => {
     try {
         const res = await fetch(url, { method: 'GET', headers: API_HEADERS });
-        if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+        if (!res.ok) {
+            // כאן הוספתי את הקסם: אנחנו שולפים את טקסט השגיאה שהשרת מחזיר
+            const errorText = await res.text();
+            throw new Error(`HTTP Error: ${res.status} | Server says: ${errorText}`);
+        }
         const json = await res.json();
         return json.data.items || [];
     } catch (err) {
