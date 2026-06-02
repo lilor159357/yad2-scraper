@@ -1,5 +1,5 @@
 const cheerio = require('cheerio');
-const Telenode = require('telenode-js');
+const nodemailer = require('nodemailer');
 const fs = require('fs');
 const config = require('./config.json');
 
@@ -80,27 +80,50 @@ const createPushFlagForWorkflow = () => {
     fs.writeFileSync("push_me", "")
 }
 
+// פונקציה חדשה לשליחת מייל
+const sendEmail = async (subject, text) => {
+    const transporter = nodemailer.createTransport({
+        service: 'gmail', 
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS
+        }
+    });
+
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: process.env.EMAIL_TO,
+        subject: subject,
+        text: text
+    };
+
+    await transporter.sendMail(mailOptions);
+};
+
 const scrape = async (topic, url) => {
-    const apiToken = process.env.API_TOKEN || config.telegramApiToken;
-    const chatId = process.env.CHAT_ID || config.chatId;
-    const telenode = new Telenode({apiToken})
     try {
-        await telenode.sendTextMessage(`Starting scanning ${topic} on link:\n${url}`, chatId)
+        // בחרתי להוריד את המייל של ה"התחלת סריקה" כדי שלא יוצף לך המייל כל 15 דקות. 
+        // אם אתה רוצה לקבל אינדיקציה שהבוט רץ, אפשר להוריד את ההערה מהשורה הבאה:
+        // await sendEmail(`[Yad2] סריקה התחילה: ${topic}`, `Starting scanning ${topic} on link:\n${url}`);
+        
+        console.log(`Scanning ${topic}...`);
         const scrapeImgResults = await scrapeItemsAndExtractImgUrls(url);
         const newItems = await checkIfHasNewItem(scrapeImgResults, topic);
+        
         if (newItems.length > 0) {
             const newItemsJoined = newItems.join("\n----------\n");
-            const msg = `${newItems.length} new items:\n${newItemsJoined}`
-            await telenode.sendTextMessage(msg, chatId);
+            const msg = `מצאנו ${newItems.length} פריטים חדשים בחיפוש שלך!\n\n${newItemsJoined}\n\nלינק לחיפוש:\n${url}`
+            await sendEmail(`[Yad2] מצאנו ${newItems.length} פריטים חדשים: ${topic}!`, msg);
+            console.log(`Sent email for ${topic}!`);
         } else {
-            await telenode.sendTextMessage("No new items were added", chatId);
+            console.log("No new items were added");
         }
     } catch (e) {
         let errMsg = e?.message || "";
         if (errMsg) {
             errMsg = `Error: ${errMsg}`
         }
-        await telenode.sendTextMessage(`Scan workflow failed... 😥\n${errMsg}`, chatId)
+        await sendEmail(`[Yad2] שגיאה בסריקה: ${topic} 😥`, `Scan workflow failed...\n${errMsg}`);
         throw new Error(e)
     }
 }
