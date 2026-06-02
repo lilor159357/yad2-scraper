@@ -1,161 +1,115 @@
-const cheerio = require('cheerio');
-const nodemailer = require('nodemailer');
 const fs = require('fs');
+const nodemailer = require('nodemailer');
 const config = require('./config.json');
 
-const getYad2Response = async (url) => {
-    const requestOptions = {
-        method: 'GET',
-        redirect: 'follow',
-        // כדאי להוסיף 'User-Agent' כדי להיראות קצת יותר כמו דפדפן רגיל ולא כמו בוט
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-    };
+// כותרות הקסם שחילצנו מהאפליקציה! זה מה שעוקף את החסימה ב-GitHub Actions
+const API_HEADERS = {
+    "accept": "application/json, text/plain, */*",
+    "mobile-app": "true",
+    "x-mobile-app": "true",
+    "user-agent": "RESPONSIVE_MOBILE_APP_ANDROID_NEW_RN_APP Mozilla/5.0 (Linux; Android 14; DumberOS Build/AP2A.240905.003; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/135.0.7049.100 Mobile Safari/537.36",
+    "anonymous_userid": "7c3335b7-b8e7-4bac-b001-7810782c8d13",
+    "Cookie": "guest_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwYXlsb2FkIjp7InV1aWQiOiI4Nzc5NGZhZS05Y2Q2LTRmZDUtYTc1Yy1mNTRiNDUxNDZkNTAifSwiaWF0IjoxNzgwNDA5NTE5LCJleHAiOjE4MTE5NjcxMTl9.s70RJMZ0hL6TyEBCQecFJ1dvj6P-vCln5FuhqDivvkg; favorites_userid=7c3335b7-b8e7-4bac-b001-7810782c8d13"
+};
+
+const fetchYad2Api = async (url) => {
     try {
-        const res = await fetch(url, requestOptions)
-        console.log(`HTTP Status received: ${res.status}`); // מדפיס את קוד התשובה
-        return await res.text()
+        const res = await fetch(url, { method: 'GET', headers: API_HEADERS });
+        if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+        const json = await res.json();
+        return json.data.items || [];
     } catch (err) {
-        console.log("Fetch error:", err)
+        console.error("Fetch error:", err);
+        throw err;
     }
-}
+};
 
-const scrapeItemsAndExtractImgUrls = async (url) => {
-    const yad2Html = await getYad2Response(url);
-    if (!yad2Html) {
-        throw new Error("Could not get Yad2 response");
-    }
-    
-    const $ = cheerio.load(yad2Html);
-    const title = $("title")
-    const titleText = title.first().text();
-    
-    // הדפסה של הכותרת של הדף - זה יעזור לנו לדעת אם חסמו אותנו
-    console.log(`Page title is: "${titleText}"`); 
-    
-    if (titleText === "ShieldSquare Captcha" || titleText.includes("Just a moment") || titleText.includes("Access Denied")) {
-        throw new Error("Bot detection - Access blocked by Yad2");
-    }
-
-    const $feedItems = $(".feeditem").find(".pic");
-    
-    // הדפסה שתראה כמה פריטים עם המחלקה הזו באמת נמצאו
-    console.log(`Found ${$feedItems.length} elements with '.feeditem .pic'`); 
-    
-    if ($feedItems.length === 0) {
-        // הדפסת דוגמה של ה-HTML במקרה שלא מצאנו כלום, כדי שנוכל לחקור מה השתנה
-        console.log("No items found. Here is a snippet of the HTML:");
-        console.log(yad2Html.substring(0, 500)); 
-    }
-
-    const imageUrls = []
-    $feedItems.each((_, elm) => {
-        const imgSrc = $(elm).find("img").attr('src');
-        if (imgSrc) {
-            imageUrls.push(imgSrc)
-        }
-    })
-    
-    console.log(`Extracted ${imageUrls.length} image URLs.`);
-    return imageUrls;
-}
-const checkIfHasNewItem = async (imgUrls, topic) => {
+const checkIfHasNewItem = async (items, topic) => {
     const filePath = `./data/${topic}.json`;
-    let savedUrls = [];
+    let savedIds = [];
     try {
-        savedUrls = require(filePath);
+        savedIds = require(filePath);
     } catch (e) {
         if (e.code === "MODULE_NOT_FOUND") {
-            fs.mkdirSync('data');
+            if (!fs.existsSync('data')) fs.mkdirSync('data');
             fs.writeFileSync(filePath, '[]');
         } else {
-            console.log(e);
             throw new Error(`Could not read / create ${filePath}`);
         }
     }
+
     let shouldUpdateFile = false;
-    savedUrls = savedUrls.filter(savedUrl => {
-        shouldUpdateFile = true;
-        return imgUrls.includes(savedUrl);
-    });
     const newItems = [];
-    imgUrls.forEach(url => {
-        if (!savedUrls.includes(url)) {
-            savedUrls.push(url);
-            newItems.push(url);
+
+    items.forEach(item => {
+        const id = item.id || item.adId; // מזהה ייחודי של המודעה מה-API
+        if (id && !savedIds.includes(id)) {
+            savedIds.push(id);
+            newItems.push(item);
             shouldUpdateFile = true;
         }
     });
+
     if (shouldUpdateFile) {
-        const updatedUrls = JSON.stringify(savedUrls, null, 2);
-        fs.writeFileSync(filePath, updatedUrls);
-        await createPushFlagForWorkflow();
+        fs.writeFileSync(filePath, JSON.stringify(savedIds, null, 2));
+        fs.writeFileSync("push_me", ""); // מדליק נורה ל-GitHub לעשות Commit
     }
     return newItems;
-}
+};
 
-const createPushFlagForWorkflow = () => {
-    fs.writeFileSync("push_me", "")
-}
-
-// פונקציה חדשה לשליחת מייל
 const sendEmail = async (subject, text) => {
     const transporter = nodemailer.createTransport({
-        service: 'gmail', 
+        service: 'gmail',
         auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS
         }
     });
-
-    const mailOptions = {
+    await transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: process.env.EMAIL_TO,
         subject: subject,
         text: text
-    };
-
-    await transporter.sendMail(mailOptions);
+    });
 };
 
 const scrape = async (topic, url) => {
+    console.log(`Scanning ${topic}...`);
     try {
-        // בחרתי להוריד את המייל של ה"התחלת סריקה" כדי שלא יוצף לך המייל כל 15 דקות. 
-        // אם אתה רוצה לקבל אינדיקציה שהבוט רץ, אפשר להוריד את ההערה מהשורה הבאה:
-        // await sendEmail(`[Yad2] סריקה התחילה: ${topic}`, `Starting scanning ${topic} on link:\n${url}`);
-        
-        console.log(`Scanning ${topic}...`);
-        const scrapeImgResults = await scrapeItemsAndExtractImgUrls(url);
-        const newItems = await checkIfHasNewItem(scrapeImgResults, topic);
-        
+        const items = await fetchYad2Api(url);
+        const newItems = await checkIfHasNewItem(items, topic);
+
         if (newItems.length > 0) {
-            const newItemsJoined = newItems.join("\n----------\n");
-            const msg = `מצאנו ${newItems.length} פריטים חדשים בחיפוש שלך!\n\n${newItemsJoined}\n\nלינק לחיפוש:\n${url}`
+            const msgLines = newItems.map((item, index) => {
+                const title = item.title || "ללא כותרת";
+                const price = item.price ? `${item.price} ₪` : "לא צוין מחיר";
+                const city = item.address && item.address.city ? item.address.city.textHeb : "עיר לא ידועה";
+                const link = item.urlIdentifier ? `https://www.yad2.co.il/item/${item.urlIdentifier}` : "";
+                return `${index + 1}. ${title} | 📍 ${city} | 💰 ${price}\n🔗 ${link}`;
+            });
+
+            const msg = `מצאנו ${newItems.length} פריטים חדשים בחיפוש שלך!\n\n${msgLines.join("\n\n----------\n\n")}`;
             await sendEmail(`[Yad2] מצאנו ${newItems.length} פריטים חדשים: ${topic}!`, msg);
             console.log(`Sent email for ${topic}!`);
         } else {
             console.log("No new items were added");
         }
     } catch (e) {
-        let errMsg = e?.message || "";
-        if (errMsg) {
-            errMsg = `Error: ${errMsg}`
-        }
-        await sendEmail(`[Yad2] שגיאה בסריקה: ${topic} 😥`, `Scan workflow failed...\n${errMsg}`);
-        throw new Error(e)
+        console.error(e);
+        await sendEmail(`[Yad2] שגיאה בסריקה: ${topic} 😥`, `Scan workflow failed...\n${e.message}`);
     }
-}
+};
 
 const program = async () => {
-    await Promise.all(config.projects.filter(project => {
+    for (const project of config.projects) {
         if (project.disabled) {
             console.log(`Topic "${project.topic}" is disabled. Skipping.`);
+            continue;
         }
-        return !project.disabled;
-    }).map(async project => {
-        await scrape(project.topic, project.url)
-    }))
+        await scrape(project.topic, project.url);
+        // השהייה קטנה בין חיפושים כדי לא להספים את השרת
+        await new Promise(resolve => setTimeout(resolve, 2000));
+    }
 };
 
 program();
