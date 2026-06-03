@@ -115,7 +115,10 @@ const scrape = async (topic, webUrl) => {
                 const title = item.title || "ללא כותרת";
                 const price = item.price ? `${item.price} ₪` : "לא צוין מחיר";
                 const city = item.address && item.address.city ? item.address.city.textHeb : "עיר לא ידועה";
-                const link = item.urlIdentifier ? `https://www.yad2.co.il/item/${item.urlIdentifier}` : "";
+                
+                // התיקון שלנו ללינקים! מזהה אם זה יד-שנייה או קטגוריה אחרת ובונה לינק תקין
+                const isMarket = webUrl.includes('/market/');
+                const link = isMarket ? `https://www.yad2.co.il/market/item/${item.id}` : `https://www.yad2.co.il/item/${item.id || item.adId}`;
                 
                 const imageUrl = (item.images && item.images.length > 0) ? item.images[0] : null;
                 const imageHtml = imageUrl ? `<img src="${imageUrl}" style="max-width: 250px; border-radius: 8px; margin-top: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />` : `<p style="color: #888;"><em>אין תמונה למודעה זו</em></p>`;
