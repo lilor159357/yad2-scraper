@@ -14,7 +14,7 @@
                     colors: {
                         darkBg: '#0b1120',
                         cardBg: '#1e293b',
-                        primary: '#ff7100', // צבע יד2
+                        primary: '#ff7100', // Yad2 Orange
                         success: '#10b981',
                         danger: '#ef4444'
                     },
@@ -39,21 +39,17 @@
     <div id="loginScreen" class="fixed inset-0 z-[100] bg-darkBg flex flex-col items-center justify-center p-4">
         <div class="glass p-10 rounded-3xl max-w-md w-full text-center shadow-2xl relative z-10">
             <h1 class="text-3xl font-bold text-white mb-2">Yad2 Scraper Pro</h1>
-            <p class="text-slate-400 mb-8">הכנס סיסמת מנהל כדי לנהל את הבוט.</p>
-            <input type="password" id="passwordInput" placeholder="סיסמת ניהול..." 
-                   class="w-full bg-slate-900 border border-slate-700 focus:border-primary rounded-xl px-5 py-4 text-white outline-none smooth text-center mb-4"
-                   onkeypress="if(event.key === 'Enter') login()">
-            <button onclick="login()" class="w-full bg-primary hover:bg-orange-600 text-white font-bold px-6 py-4 rounded-xl flex items-center justify-center gap-3 smooth shadow-[0_0_15px_rgba(255,113,0,0.4)]">
-                <i class="ph-fill ph-lock-key text-2xl"></i> התחבר
+            <p class="text-slate-400 mb-8">התחבר עם חשבון ה-GitHub שלך כדי לנהל את הבוט.</p>
+            <button onclick="loginWithGitHub()" class="w-full bg-white hover:bg-slate-200 text-slate-900 font-bold px-6 py-4 rounded-xl flex items-center justify-center gap-3 smooth">
+                <i class="ph-fill ph-github-logo text-2xl"></i> התחבר לגיטהאב
             </button>
-            <p id="loginError" class="text-red-400 mt-4 hidden text-sm">סיסמה שגויה או שגיאת שרת.</p>
         </div>
     </div>
 
     <!-- Loader -->
     <div id="loaderScreen" class="fixed inset-0 z-[110] bg-darkBg/90 backdrop-blur-md hidden flex-col items-center justify-center">
         <div class="spinner mb-4 w-12 h-12 border-4"></div>
-        <p id="loaderText" class="text-primary font-medium tracking-wide">טוען נתונים...</p>
+        <p id="loaderText" class="text-primary font-medium tracking-wide">מאמת נתונים...</p>
     </div>
 
     <!-- Navbar -->
@@ -63,8 +59,8 @@
             <h1 class="text-xl font-bold text-white tracking-wide">Yad2 Bot</h1>
         </div>
         <div class="flex items-center gap-4">
-            <button onclick="saveData()" id="saveBtn" class="bg-primary hover:bg-orange-600 smooth text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2">
-                <i class="ph ph-cloud-arrow-up text-xl"></i> שמור לענן
+            <button onclick="saveToGitHub()" id="saveBtn" class="bg-primary hover:bg-orange-600 smooth text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2">
+                <i class="ph ph-cloud-arrow-up text-xl"></i> שמור לגיטהאב
             </button>
             <button onclick="logout()" class="bg-slate-800 hover:bg-slate-700 smooth text-slate-300 px-4 py-2.5 rounded-xl font-medium border border-slate-600">
                 <i class="ph ph-sign-out text-xl"></i> התנתק
@@ -101,9 +97,22 @@
     <div id="toastContainer" class="fixed bottom-6 right-6 z-[300] flex flex-col gap-3 pointer-events-none"></div>
 
     <script>
+        // ==========================================
+        // הגדרות הפרויקט של יד2 (מזהה ה-OAuth שלך)
+        // ==========================================
+        const CONFIG = {
+            GITHUB_USER: 'lilor159357',
+            GITHUB_REPO: 'yad2-scraper',
+            FILE_PATH: 'config.json',
+            // שים כאן את ה-Client ID של האפליקציה שתיצור ב-GitHub (הסבר למטה)
+            GITHUB_CLIENT_ID: 'YOUR_GITHUB_CLIENT_ID_HERE' 
+        };
+
         let configData = { projects: [] };
         let fileSha = null;
+        let githubToken = null;
 
+        // --- UI Functions ---
         const showToast = (msg, type = 'success') => {
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div');
@@ -125,54 +134,92 @@
         const utf8_to_b64 = str => window.btoa(unescape(encodeURIComponent(str)));
         const b64_to_utf8 = str => decodeURIComponent(escape(window.atob(str)));
 
-        // --- תקשורת עם השרת של Vercel ---
-        const login = async () => {
-            const pwd = document.getElementById('passwordInput').value;
-            if (!pwd) return;
-            showLoader(true, 'מתחבר לשרת...');
+        // --- GitHub OAuth & API Functions ---
+        const loginWithGitHub = () => {
+            window.location.href = `https://github.com/login/oauth/authorize?client_id=${CONFIG.GITHUB_CLIENT_ID}&scope=repo`;
+        };
+
+        const logout = () => {
+            localStorage.removeItem('gh_token_yad2');
+            window.location.href = window.location.pathname;
+        };
+
+        const handleOAuthCallback = async (code) => {
+            showLoader(true, 'מאמת מול GitHub...');
             try {
-                const res = await fetch('/api/config', { headers: { 'x-admin-password': pwd } });
-                if (!res.ok) throw new Error();
-                
+                const res = await fetch(`/api/github-callback?code=${code}`);
+                if (!res.ok) throw new Error('שגיאה בקבלת טוקן');
                 const data = await res.json();
-                fileSha = data.sha;
-                configData = JSON.parse(b64_to_utf8(data.content));
-                if (!configData.projects) configData.projects = [];
                 
-                sessionStorage.setItem('adminPwd', pwd);
+                if (data.token) {
+                    localStorage.setItem('gh_token_yad2', data.token);
+                    window.location.href = window.location.pathname; // מנקה את ה-URL מפרמטר ה-code
+                } else {
+                    throw new Error('טוקן חסר');
+                }
+            } catch (error) {
+                showLoader(false);
+                alert(`שגיאה: ${error.message}`);
+            }
+        };
+
+        const loadFromGitHub = async () => {
+            showLoader(true, 'טוען הגדרות מגיטהאב...');
+            try {
+                const res = await fetch(`https://api.github.com/repos/${CONFIG.GITHUB_USER}/${CONFIG.GITHUB_REPO}/contents/${CONFIG.FILE_PATH}`, {
+                    headers: { 'Authorization': `token ${githubToken}` }
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    fileSha = data.sha;
+                    configData = JSON.parse(b64_to_utf8(data.content));
+                } else if (res.status === 404) {
+                    configData = { projects: [] }; // אם הקובץ לא קיים עדיין
+                } else {
+                    throw new Error('שגיאה במשיכת קובץ - ודא שיש לך הרשאת גישה לריפו.');
+                }
+                
+                if(!configData.projects) configData.projects = [];
+
                 document.getElementById('loginScreen').classList.add('hidden');
                 document.getElementById('mainNav').classList.remove('hidden', 'opacity-0');
                 document.getElementById('mainContent').classList.remove('hidden', 'opacity-0');
                 renderList();
-            } catch (e) {
-                document.getElementById('loginError').classList.remove('hidden');
+
+            } catch (err) {
+                showToast(err.message, 'error');
+                if(err.message.includes('הרשאת גישה')) logout(); // טוקן פג תוקף
             }
             showLoader(false);
         };
 
-        const saveData = async () => {
-            const pwd = sessionStorage.getItem('adminPwd');
-            showLoader(true, 'שומר לגיטהאב...');
+        const saveToGitHub = async () => {
+            showLoader(true, 'שומר שינויים ל-GitHub...');
+            const jsonString = JSON.stringify(configData, null, 2);
+            const body = { message: 'Update Yad2 Config via Admin UI', content: utf8_to_b64(jsonString) };
+            if (fileSha) body.sha = fileSha;
+
             try {
-                const res = await fetch('/api/config', {
-                    method: 'POST',
-                    headers: { 'x-admin-password': pwd, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        content: utf8_to_b64(JSON.stringify(configData, null, 2)),
-                        sha: fileSha
-                    })
+                const res = await fetch(`https://api.github.com/repos/${CONFIG.GITHUB_USER}/${CONFIG.GITHUB_REPO}/contents/${CONFIG.FILE_PATH}`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `token ${githubToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
                 });
-                if (!res.ok) throw new Error();
+
                 const data = await res.json();
-                fileSha = data.content.sha;
-                showToast('ההגדרות נשמרו בהצלחה בגיטהאב!');
-            } catch (e) {
-                showToast('שגיאה בשמירה', 'error');
+                if (!res.ok) throw new Error(data.message);
+
+                fileSha = data.content.sha; // מעדכן SHA למקרה של שמירה נוספת
+                showToast('נשמר בהצלחה ב-GitHub! 🎉', 'success');
+
+            } catch (err) {
+                showToast(`שגיאה: ${err.message}`, 'error');
             }
             showLoader(false);
         };
 
-        // --- ניהול ה-UI ---
+        // --- List Management ---
         const renderList = () => {
             const list = document.getElementById('projectsList');
             list.innerHTML = configData.projects.map((p, i) => `
@@ -192,7 +239,7 @@
                     </div>
                 </div>
             `).join('');
-            if (configData.projects.length === 0) list.innerHTML = '<div class="text-center text-slate-500 py-6">אין חיפושים פעילים.</div>';
+            if (configData.projects.length === 0) list.innerHTML = '<div class="text-center text-slate-500 py-6">אין חיפושים פעילים ברשימה.</div>';
         };
 
         const addProject = () => {
@@ -204,14 +251,23 @@
             renderList();
         };
 
-        const removeProject = (i) => { if (confirm('למחוק חיפוש זה?')) { configData.projects.splice(i, 1); renderList(); } };
+        const removeProject = (i) => { if (confirm('האם למחוק חיפוש זה?')) { configData.projects.splice(i, 1); renderList(); } };
         const toggleProject = (i) => { configData.projects[i].disabled = !configData.projects[i].disabled; renderList(); };
-        const logout = () => { sessionStorage.removeItem('adminPwd'); location.reload(); };
 
-        if (sessionStorage.getItem('adminPwd')) {
-            document.getElementById('passwordInput').value = sessionStorage.getItem('adminPwd');
-            login();
-        }
+        // --- Initialization ---
+        window.onload = async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            
+            if (code) {
+                // חזרנו מגיטהאב עם קוד
+                await handleOAuthCallback(code);
+            } else {
+                // בדיקה אם אנחנו כבר מחוברים
+                githubToken = localStorage.getItem('gh_token_yad2');
+                if (githubToken) loadFromGitHub();
+            }
+        };
     </script>
 </body>
 </html>
