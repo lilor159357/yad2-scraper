@@ -7,6 +7,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     
+    <!-- טעינת קובץ הערים החדש שיצרנו! -->
+    <script src="cities.js"></script>
+    
     <script>
         tailwind.config = {
             theme: {
@@ -14,7 +17,7 @@
                     colors: {
                         darkBg: '#0b1120',
                         cardBg: '#1e293b',
-                        primary: '#ff7100', // Yad2 Orange
+                        primary: '#ff7100', 
                         success: '#10b981',
                         danger: '#ef4444'
                     },
@@ -31,11 +34,25 @@
         .ltr-text { direction: ltr; text-align: left; }
         .spinner { border: 3px solid rgba(255,255,255,0.1); border-left-color: #ff7100; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .tab-btn { padding: 10px 20px; font-weight: bold; border-bottom: 2px solid transparent; cursor: pointer; transition: 0.3s; color: #94a3b8; }
+        .tab-btn.active { color: #ff7100; border-bottom-color: #ff7100; }
+        .tab-content { display: none; padding-top: 20px; }
+        .tab-content.active { display: block; }
+        
+        .autocomplete-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; margin-top: 0.5rem; max-height: 250px; overflow-y: auto; z-index: 50; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .autocomplete-item { padding: 12px 16px; cursor: pointer; transition: 0.2s; border-bottom: 1px solid #334155; display: flex; flex-direction: column; }
+        .autocomplete-item:last-child { border-bottom: none; }
+        .autocomplete-item:hover { background: #334155; }
+        .autocomplete-item .title { font-weight: bold; color: #fff; }
+        
+        .autocomplete-dropdown::-webkit-scrollbar { width: 6px; }
+        .autocomplete-dropdown::-webkit-scrollbar-track { background: transparent; }
+        .autocomplete-dropdown::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col font-sans relative">
 
-    <!-- Login Screen -->
     <div id="loginScreen" class="fixed inset-0 z-[100] bg-darkBg flex flex-col items-center justify-center p-4">
         <div class="glass p-10 rounded-3xl max-w-md w-full text-center shadow-2xl relative z-10">
             <h1 class="text-3xl font-bold text-white mb-2">Yad2 Scraper Pro</h1>
@@ -46,13 +63,11 @@
         </div>
     </div>
 
-    <!-- Loader -->
     <div id="loaderScreen" class="fixed inset-0 z-[110] bg-darkBg/90 backdrop-blur-md hidden flex-col items-center justify-center">
         <div class="spinner mb-4 w-12 h-12 border-4"></div>
-        <p id="loaderText" class="text-primary font-medium tracking-wide">מאמת נתונים...</p>
+        <p id="loaderText" class="text-primary font-medium tracking-wide">טוען...</p>
     </div>
 
-    <!-- Navbar -->
     <nav id="mainNav" class="glass sticky top-0 z-40 px-6 py-4 flex justify-between items-center shadow-lg hidden opacity-0 smooth">
         <div class="flex items-center gap-3">
             <div class="bg-primary/20 p-2 rounded-lg text-primary"><i class="ph-fill ph-robot text-2xl"></i></div>
@@ -68,28 +83,86 @@
         </div>
     </nav>
 
-    <!-- Main Content -->
     <main id="mainContent" class="flex-grow max-w-4xl w-full mx-auto p-4 md:p-8 hidden opacity-0 smooth">
         
         <div class="glass rounded-3xl p-6 md:p-8 shadow-2xl">
-            <div class="flex justify-between items-center mb-8">
+            <div class="flex justify-between items-center mb-6">
                 <div>
                     <h2 class="text-3xl font-bold text-white mb-2">רשימת חיפושים</h2>
                     <p class="text-slate-400">נהל את החיפושים שעליהם הבוט עובר.</p>
                 </div>
             </div>
 
-            <!-- Add New -->
+            <div class="mb-8 relative z-30">
+                <div class="relative group">
+                    <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                        <i id="searchIcon" class="ph ph-magnifying-glass text-xl text-slate-400"></i>
+                        <div id="searchSpinner" class="spinner w-5 h-5 hidden border-[2px]"></div>
+                    </div>
+                    <input type="text" id="liveSearchInput" oninput="handleLiveSearch()" placeholder="חיפוש חכם בלייב (עיר, רכב, נדל״ן)..." 
+                           class="w-full bg-slate-900 border-2 border-primary/50 focus:border-primary rounded-xl pl-4 pr-12 py-4 text-lg text-white outline-none smooth shadow-[0_0_15px_rgba(255,113,0,0.15)]">
+                    <div id="autocompleteDropdown" class="autocomplete-dropdown"></div>
+                </div>
+                <p class="text-xs text-slate-500 mt-2"><i class="ph-fill ph-lightning text-yellow-400"></i> מחובר ישירות לשרתי יד2 להשלמה אוטומטית!</p>
+            </div>
+
             <div class="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 mb-8">
-                <h3 class="text-white font-medium mb-4 flex items-center gap-2"><i class="ph text-primary ph-plus-circle text-xl"></i> הוסף חיפוש חדש</h3>
-                <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
-                    <input type="text" id="newTopic" placeholder="שם החיפוש (למשל: רכב הונדה)" class="md:col-span-4 bg-slate-900 border border-slate-700 focus:border-primary rounded-xl px-4 py-3 text-white outline-none smooth">
-                    <input type="text" id="newUrl" placeholder="לינק מהדפדפן של יד2..." class="md:col-span-6 bg-slate-900 border border-slate-700 focus:border-primary rounded-xl px-4 py-3 text-white outline-none smooth ltr-text placeholder:text-right">
-                    <button onclick="addProject()" class="md:col-span-2 bg-slate-700 hover:bg-primary text-white rounded-xl font-bold smooth">הוסף</button>
+                <div class="flex border-b border-slate-700 mb-4">
+                    <div class="tab-btn active" onclick="switchTab('builder')"><i class="ph ph-magic-wand mr-1"></i> יצירת חיפוש</div>
+                    <div class="tab-btn" onclick="switchTab('manual')"><i class="ph ph-link mr-1"></i> הדבקת לינק חכם</div>
+                </div>
+
+                <div id="tab-builder" class="tab-content active">
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+                        <div class="md:col-span-1">
+                            <label class="block text-sm text-slate-400 mb-1">שם החיפוש</label>
+                            <input type="text" id="buildName" placeholder="למשל: נדלן בת ים" class="w-full bg-slate-900 border border-slate-700 focus:border-primary rounded-xl px-4 py-3 text-white outline-none smooth">
+                        </div>
+                        <div class="md:col-span-1">
+                            <label class="block text-sm text-slate-400 mb-1">קטגוריה</label>
+                            <select id="buildCat" class="w-full bg-slate-900 border border-slate-700 focus:border-primary rounded-xl px-4 py-3 text-white outline-none smooth cursor-pointer">
+                                <option value="market">יד שנייה</option>
+                                <option value="vehicles/cars">רכבים פרטיים</option>
+                                <option value="realestate/forsale">נדל"ן למכירה</option>
+                                <option value="realestate/rent">נדל"ן להשכרה</option>
+                            </select>
+                        </div>
+                        <div class="md:col-span-1">
+                            <label class="block text-sm text-slate-400 mb-1">עיר (מקושר ללמ"ס)</label>
+                            <input list="citiesList" id="buildCity" placeholder="הקלד עיר..." class="w-full bg-slate-900 border border-slate-700 focus:border-primary rounded-xl px-4 py-3 text-white outline-none smooth">
+                            <datalist id="citiesList"></datalist>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm text-slate-400 mb-1">מילת חיפוש חופשית</label>
+                            <input type="text" id="buildQ" placeholder="דגם, רחוב או מילה..." class="w-full bg-slate-900 border border-slate-700 focus:border-primary rounded-xl px-4 py-3 text-white outline-none smooth">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                        <div class="md:col-span-1">
+                            <label class="block text-sm text-slate-400 mb-1">מחיר מ- (₪)</label>
+                            <input type="number" id="buildMin" placeholder="מינימום" class="w-full bg-slate-900 border border-slate-700 focus:border-primary rounded-xl px-4 py-3 text-white outline-none smooth">
+                        </div>
+                        <div class="md:col-span-1">
+                            <label class="block text-sm text-slate-400 mb-1">מחיר עד- (₪)</label>
+                            <input type="number" id="buildMax" placeholder="מקסימום" class="w-full bg-slate-900 border border-slate-700 focus:border-primary rounded-xl px-4 py-3 text-white outline-none smooth">
+                        </div>
+                        <div class="md:col-span-2">
+                            <button onclick="generateAndAdd()" class="w-full bg-primary hover:bg-orange-600 text-white rounded-xl font-bold py-3 smooth shadow-lg flex justify-center items-center gap-2">
+                                <i class="ph-bold ph-plus"></i> הוסף לרשימה
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-manual" class="tab-content">
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                        <input type="text" id="manualName" placeholder="שם החיפוש (למשל: קורולה 2018)" class="md:col-span-4 bg-slate-900 border border-slate-700 focus:border-primary rounded-xl px-4 py-3 text-white outline-none smooth">
+                        <input type="text" id="manualUrl" placeholder="https://www.yad2.co.il/..." class="md:col-span-6 bg-slate-900 border border-slate-700 focus:border-primary rounded-xl px-4 py-3 text-white outline-none smooth ltr-text placeholder:text-right">
+                        <button onclick="addManualProject()" class="md:col-span-2 bg-slate-700 hover:bg-primary text-white rounded-xl font-bold smooth">הוסף</button>
+                    </div>
                 </div>
             </div>
 
-            <!-- List -->
             <div id="projectsList" class="space-y-4"></div>
         </div>
     </main>
@@ -97,22 +170,86 @@
     <div id="toastContainer" class="fixed bottom-6 right-6 z-[300] flex flex-col gap-3 pointer-events-none"></div>
 
     <script>
-        // ==========================================
-        // הגדרות הפרויקט של יד2 (מזהה ה-OAuth שלך)
-        // ==========================================
         const CONFIG = {
             GITHUB_USER: 'lilor159357',
             GITHUB_REPO: 'yad2-scraper',
             FILE_PATH: 'config.json',
-            // שים כאן את ה-Client ID של האפליקציה שתיצור ב-GitHub (הסבר למטה)
-            GITHUB_CLIENT_ID: 'Ov23li4FWE7nhe3r0b3N' 
+            GITHUB_CLIENT_ID: 'Ov23li4FWE7nhe3r0b3N'
         };
 
         let configData = { projects: [] };
         let fileSha = null;
         let githubToken = null;
+        let debounceTimer = null;
 
-        // --- UI Functions ---
+        const handleLiveSearch = () => {
+            const query = document.getElementById('liveSearchInput').value.trim();
+            const dropdown = document.getElementById('autocompleteDropdown');
+            const icon = document.getElementById('searchIcon');
+            const spinner = document.getElementById('searchSpinner');
+
+            if (query.length < 2) { dropdown.style.display = 'none'; return; }
+
+            icon.classList.add('hidden'); spinner.classList.remove('hidden');
+
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(async () => {
+                try {
+                    const res = await fetch(`/api/autocomplete?q=${encodeURIComponent(query)}`);
+                    const jsonRes = await res.json();
+                    const suggestions = jsonRes.data?.suggestions || {};
+                    let html = '';
+
+                    const catMap = {
+                        'realestate': { label: 'נדל״ן', icon: 'ph-house', val: 'realestate/forsale' },
+                        'vehicles': { label: 'רכב', icon: 'ph-car', val: 'vehicles/cars' },
+                        'goods': { label: 'יד שנייה', icon: 'ph-shopping-bag', val: 'market' }
+                    };
+
+                    for (const [catKey, items] of Object.entries(suggestions)) {
+                        if (items && items.length > 0 && catMap[catKey]) {
+                            html += `
+                                <div class="px-4 py-2 bg-slate-800 text-xs font-bold text-slate-400 flex items-center gap-2 border-b border-slate-700">
+                                    <i class="ph-fill ${catMap[catKey].icon} text-primary"></i> ${catMap[catKey].label}
+                                </div>
+                            `;
+                            items.forEach(item => {
+                                html += `<div class="autocomplete-item" onclick="selectSuggestion('${item.replace(/'/g, "\\'")}', '${catMap[catKey].val}')"><span class="title pr-6">${item}</span></div>`;
+                            });
+                        }
+                    }
+
+                    if (html) { dropdown.innerHTML = html; dropdown.style.display = 'block'; } 
+                    else { dropdown.innerHTML = '<div class="p-4 text-slate-500 text-center">לא נמצאו תוצאות.</div>'; dropdown.style.display = 'block'; }
+                } catch (e) { console.error('Autocomplete fetch error:', e); } 
+                finally { icon.classList.remove('hidden'); spinner.classList.add('hidden'); }
+            }, 500); 
+        };
+
+        const selectSuggestion = (text, categoryValue) => {
+            switchTab('builder');
+            document.getElementById('buildName').value = text;
+            document.getElementById('buildQ').value = text;
+            document.getElementById('buildCat').value = categoryValue;
+            document.getElementById('buildCity').value = '';
+            document.getElementById('buildMin').value = '';
+            document.getElementById('buildMax').value = '';
+            document.getElementById('autocompleteDropdown').style.display = 'none';
+            document.getElementById('liveSearchInput').value = '';
+            showToast('נבחר בהצלחה!');
+        };
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#liveSearchInput') && !e.target.closest('#autocompleteDropdown')) { document.getElementById('autocompleteDropdown').style.display = 'none'; }
+        });
+
+        const switchTab = (tab) => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector(`.tab-btn[onclick="switchTab('${tab}')"]`).classList.add('active');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+        };
+
         const showToast = (msg, type = 'success') => {
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div');
@@ -134,15 +271,57 @@
         const utf8_to_b64 = str => window.btoa(unescape(encodeURIComponent(str)));
         const b64_to_utf8 = str => decodeURIComponent(escape(window.atob(str)));
 
-        // --- GitHub OAuth & API Functions ---
-        const loginWithGitHub = () => {
-            window.location.href = `https://github.com/login/oauth/authorize?client_id=${CONFIG.GITHUB_CLIENT_ID}&scope=repo`;
+        const generateAndAdd = () => {
+            const name = document.getElementById('buildName').value.trim();
+            const cat = document.getElementById('buildCat').value;
+            const q = document.getElementById('buildQ').value.trim();
+            const city = document.getElementById('buildCity').value.trim();
+            const min = document.getElementById('buildMin').value.trim();
+            const max = document.getElementById('buildMax').value.trim();
+            
+            if (!name) return showToast('יש לתת שם לחיפוש', 'error');
+            
+            let url = `https://www.yad2.co.il/${cat}/search?`;
+            const params = new URLSearchParams();
+            
+            if (q) params.append('q', q);
+            
+            // שימוש במילון הגלובלי מתוך cities.js
+            if (city && window.CITIES_DICT && window.CITIES_DICT[city]) {
+                params.append('city', window.CITIES_DICT[city]);
+            } else if (city) {
+                showToast(`שים לב: העיר '${city}' לא נמצאה במילון ולכן לא הוספה לסינון.`, 'error');
+            }
+
+            if (min || max) {
+                let priceStr = "";
+                if (min && max) priceStr = `${min}-${max}`;
+                else if (min) priceStr = `${min}-`;
+                else if (max) priceStr = `-${max}`;
+                params.append('price', priceStr);
+            }
+            
+            url += params.toString();
+            configData.projects.unshift({ topic: name, url: url });
+            
+            document.getElementById('buildName').value = ''; document.getElementById('buildQ').value = '';
+            document.getElementById('buildCity').value = '';
+            document.getElementById('buildMin').value = ''; document.getElementById('buildMax').value = '';
+            
+            renderList();
         };
 
-        const logout = () => {
-            localStorage.removeItem('gh_token_yad2');
-            window.location.href = window.location.pathname;
+        const addManualProject = () => {
+            const topic = document.getElementById('manualName').value.trim();
+            const url = document.getElementById('manualUrl').value.trim();
+            if (!topic || !url) return showToast('יש למלא שם ולינק', 'error');
+            configData.projects.unshift({ topic, url });
+            document.getElementById('manualName').value = ''; document.getElementById('manualUrl').value = '';
+            renderList();
         };
+
+        const loginWithGitHub = () => { window.location.href = `https://github.com/login/oauth/authorize?client_id=${CONFIG.GITHUB_CLIENT_ID}&scope=repo`; };
+        const logout = () => { localStorage.removeItem('gh_token_yad2'); window.location.href = window.location.pathname; };
 
         const handleOAuthCallback = async (code) => {
             showLoader(true, 'מאמת מול GitHub...');
@@ -150,13 +329,10 @@
                 const res = await fetch(`/api/github-callback?code=${code}`);
                 if (!res.ok) throw new Error('שגיאה בקבלת טוקן');
                 const data = await res.json();
-                
                 if (data.token) {
                     localStorage.setItem('gh_token_yad2', data.token);
-                    window.location.href = window.location.pathname; // מנקה את ה-URL מפרמטר ה-code
-                } else {
-                    throw new Error('טוקן חסר');
-                }
+                    window.location.href = window.location.pathname;
+                } else { throw new Error('טוקן חסר'); }
             } catch (error) {
                 showLoader(false);
                 alert(`שגיאה: ${error.message}`);
@@ -166,30 +342,21 @@
         const loadFromGitHub = async () => {
             showLoader(true, 'טוען הגדרות מגיטהאב...');
             try {
-                const res = await fetch(`https://api.github.com/repos/${CONFIG.GITHUB_USER}/${CONFIG.GITHUB_REPO}/contents/${CONFIG.FILE_PATH}`, {
-                    headers: { 'Authorization': `token ${githubToken}` }
-                });
-
+                const res = await fetch(`https://api.github.com/repos/${CONFIG.GITHUB_USER}/${CONFIG.GITHUB_REPO}/contents/${CONFIG.FILE_PATH}`, { headers: { 'Authorization': `token ${githubToken}` } });
                 if (res.ok) {
                     const data = await res.json();
                     fileSha = data.sha;
                     configData = JSON.parse(b64_to_utf8(data.content));
-                } else if (res.status === 404) {
-                    configData = { projects: [] }; // אם הקובץ לא קיים עדיין
-                } else {
-                    throw new Error('שגיאה במשיכת קובץ - ודא שיש לך הרשאת גישה לריפו.');
-                }
-                
+                } else if (res.status === 404) { configData = { projects: [] }; } 
+                else { throw new Error('שגיאה במשיכת קובץ - ודא שיש לך הרשאת גישה לריפו.'); }
                 if(!configData.projects) configData.projects = [];
-
                 document.getElementById('loginScreen').classList.add('hidden');
                 document.getElementById('mainNav').classList.remove('hidden', 'opacity-0');
                 document.getElementById('mainContent').classList.remove('hidden', 'opacity-0');
                 renderList();
-
             } catch (err) {
                 showToast(err.message, 'error');
-                if(err.message.includes('הרשאת גישה')) logout(); // טוקן פג תוקף
+                if(err.message.includes('הרשאת גישה')) logout(); 
             }
             showLoader(false);
         };
@@ -199,40 +366,33 @@
             const jsonString = JSON.stringify(configData, null, 2);
             const body = { message: 'Update Yad2 Config via Admin UI', content: utf8_to_b64(jsonString) };
             if (fileSha) body.sha = fileSha;
-
             try {
                 const res = await fetch(`https://api.github.com/repos/${CONFIG.GITHUB_USER}/${CONFIG.GITHUB_REPO}/contents/${CONFIG.FILE_PATH}`, {
                     method: 'PUT',
                     headers: { 'Authorization': `token ${githubToken}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify(body)
                 });
-
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.message);
-
-                fileSha = data.content.sha; // מעדכן SHA למקרה של שמירה נוספת
+                fileSha = data.content.sha; 
                 showToast('נשמר בהצלחה ב-GitHub! 🎉', 'success');
-
-            } catch (err) {
-                showToast(`שגיאה: ${err.message}`, 'error');
-            }
+            } catch (err) { showToast(`שגיאה: ${err.message}`, 'error'); }
             showLoader(false);
         };
 
-        // --- List Management ---
         const renderList = () => {
             const list = document.getElementById('projectsList');
             list.innerHTML = configData.projects.map((p, i) => `
                 <div class="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 flex flex-col md:flex-row justify-between items-center gap-4 ${p.disabled ? 'opacity-50' : ''}">
-                    <div class="flex-grow w-full">
+                    <div class="flex-grow w-full overflow-hidden">
                         <div class="flex items-center gap-2 mb-1">
                             <h3 class="font-bold text-white text-lg">${p.topic}</h3>
-                            ${p.disabled ? '<span class="bg-red-500/20 text-red-400 text-xs px-2 py-0.5 rounded">מושעה</span>' : '<span class="bg-green-500/20 text-green-400 text-xs px-2 py-0.5 rounded">פעיל</span>'}
+                            ${p.disabled ? '<span class="bg-red-500/20 text-red-400 text-xs px-2 py-0.5 rounded flex-shrink-0">מושעה</span>' : '<span class="bg-green-500/20 text-green-400 text-xs px-2 py-0.5 rounded flex-shrink-0">פעיל</span>'}
                         </div>
-                        <p class="text-xs text-slate-400 ltr-text font-mono truncate max-w-xl">${p.url}</p>
+                        <p class="text-xs text-slate-400 ltr-text font-mono truncate" style="direction: ltr;">${p.url}</p>
                     </div>
-                    <div class="flex gap-2">
-                        <button onclick="toggleProject(${i})" class="bg-slate-900 border border-slate-700 text-slate-300 hover:text-white px-4 py-2 rounded-xl text-sm smooth w-24">
+                    <div class="flex gap-2 flex-shrink-0">
+                        <button onclick="toggleProject(${i})" class="bg-slate-900 border border-slate-700 text-slate-300 hover:text-white px-4 py-2 rounded-xl text-sm smooth w-20 text-center">
                             ${p.disabled ? 'הפעל' : 'השהה'}
                         </button>
                         <button onclick="removeProject(${i})" class="bg-slate-900 border border-slate-700 hover:border-red-500/30 text-red-400 hover:bg-red-500/10 px-4 py-2 rounded-xl smooth"><i class="ph ph-trash text-lg"></i></button>
@@ -242,28 +402,34 @@
             if (configData.projects.length === 0) list.innerHTML = '<div class="text-center text-slate-500 py-6">אין חיפושים פעילים ברשימה.</div>';
         };
 
-        const addProject = () => {
-            const topic = document.getElementById('newTopic').value;
-            const url = document.getElementById('newUrl').value;
-            if (!topic || !url) return showToast('יש למלא את כל השדות', 'error');
-            configData.projects.unshift({ topic, url });
-            document.getElementById('newTopic').value = ''; document.getElementById('newUrl').value = '';
-            renderList();
-        };
-
         const removeProject = (i) => { if (confirm('האם למחוק חיפוש זה?')) { configData.projects.splice(i, 1); renderList(); } };
         const toggleProject = (i) => { configData.projects[i].disabled = !configData.projects[i].disabled; renderList(); };
 
-        // --- Initialization ---
         window.onload = async () => {
+            // פונקציה שממלאת את רשימת הערים
+            const loadCitiesToUI = () => {
+                const datalist = document.getElementById('citiesList');
+                datalist.innerHTML = ''; // ניקוי הקיים
+                if (window.CITIES_DICT) {
+                    // מיון אלפביתי של הערים
+                    Object.keys(window.CITIES_DICT).sort().forEach(cityName => {
+                        const option = document.createElement('option');
+                        option.value = cityName;
+                        datalist.appendChild(option);
+                    });
+                }
+            };
+
+            // טוען מיד את הערים שיש בגיבוי
+            loadCitiesToUI();
+
+            // מאזין לאירוע של הסיום של fetch ממשרד הפנים ומרענן את הרשימה!
+            window.addEventListener('citiesLoaded', loadCitiesToUI);
+
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
-            
-            if (code) {
-                // חזרנו מגיטהאב עם קוד
-                await handleOAuthCallback(code);
-            } else {
-                // בדיקה אם אנחנו כבר מחוברים
+            if (code) { await handleOAuthCallback(code); } 
+            else {
                 githubToken = localStorage.getItem('gh_token_yad2');
                 if (githubToken) loadFromGitHub();
             }
@@ -271,3 +437,4 @@
     </script>
 </body>
 </html>
+            
