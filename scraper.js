@@ -85,7 +85,8 @@ const checkIfHasNewItem = async (items, topic) => {
     return newItems;
 };
 
-const sendEmail = async (subject, htmlContent) => {
+// --- כאן השדרוג של המייל! הפונקציה מקבלת עכשיו גם 'targetEmail' ---
+const sendEmail = async (subject, htmlContent, targetEmail) => {
     const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
@@ -93,15 +94,20 @@ const sendEmail = async (subject, htmlContent) => {
             pass: process.env.EMAIL_PASS
         }
     });
+
+    // קובע לאן לשלוח: אם הוגדר מייל לחיפוש - לשם, אם לא - למייל ברירת המחדל
+    const mailTo = targetEmail || process.env.EMAIL_TO || process.env.EMAIL_USER;
+
     await transporter.sendMail({
         from: process.env.EMAIL_USER,
-        to: process.env.EMAIL_TO,
+        to: mailTo,
         subject: subject,
         html: htmlContent
     });
 };
 
-const scrape = async (topic, webUrl) => {
+// --- גם פונקציית הסריקה מקבלת עכשיו את המייל ---
+const scrape = async (topic, webUrl, targetEmail) => {
     console.log(`\nScanning ${topic}...`);
     const apiUrl = convertWebToApiUrl(webUrl);
     console.log(`Converted API Target: ${apiUrl}`);
@@ -116,7 +122,6 @@ const scrape = async (topic, webUrl) => {
                 const price = item.price ? `${item.price} ₪` : "לא צוין מחיר";
                 const city = item.address && item.address.city ? item.address.city.textHeb : "עיר לא ידועה";
                 
-                // התיקון שלנו ללינקים! מזהה אם זה יד-שנייה או קטגוריה אחרת ובונה לינק תקין
                 const isMarket = webUrl.includes('/market/');
                 const link = isMarket ? `https://www.yad2.co.il/market/item/${item.id}` : `https://www.yad2.co.il/item/${item.id || item.adId}`;
                 
@@ -144,14 +149,15 @@ const scrape = async (topic, webUrl) => {
             </div>
             `;
 
-            await sendEmail(`[Yad2] מצאנו ${newItems.length} פריטים חדשים: ${topic}!`, htmlMsg);
+            // מעבירים לפונקציית השליחה גם את המייל הייעודי!
+            await sendEmail(`[Yad2] מצאנו ${newItems.length} פריטים חדשים: ${topic}!`, htmlMsg, targetEmail);
             console.log(`✅ Sent HTML email for ${topic}!`);
         } else {
             console.log("No new items were added.");
         }
     } catch (e) {
         console.error(e);
-        await sendEmail(`[Yad2] שגיאה בסריקה: ${topic} 😥`, `<div style="direction: rtl;"><h3>שגיאה בסריקת ${topic}</h3><p>${e.message}</p></div>`);
+        await sendEmail(`[Yad2] שגיאה בסריקה: ${topic} 😥`, `<div style="direction: rtl;"><h3>שגיאה בסריקת ${topic}</h3><p>${e.message}</p></div>`, targetEmail);
     }
 };
 
@@ -161,7 +167,8 @@ const program = async () => {
             console.log(`Topic "${project.topic}" is disabled. Skipping.`);
             continue;
         }
-        await scrape(project.topic, project.url);
+        // שולחים ל-scrape את הנושא, הלינק, *והאימייל הייעודי מתוך ההגדרות*
+        await scrape(project.topic, project.url, project.email);
         await new Promise(resolve => setTimeout(resolve, 2000));
     }
 };
