@@ -7,20 +7,13 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     
-    <!-- טעינת קובץ הערים החדש שיצרנו! -->
     <script src="cities.js"></script>
     
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    colors: {
-                        darkBg: '#0b1120',
-                        cardBg: '#1e293b',
-                        primary: '#ff7100', 
-                        success: '#10b981',
-                        danger: '#ef4444'
-                    },
+                    colors: { darkBg: '#0b1120', cardBg: '#1e293b', primary: '#ff7100', success: '#10b981', danger: '#ef4444' },
                     fontFamily: { sans:['system-ui', '-apple-system', 'sans-serif'] }
                 }
             }
@@ -34,18 +27,15 @@
         .ltr-text { direction: ltr; text-align: left; }
         .spinner { border: 3px solid rgba(255,255,255,0.1); border-left-color: #ff7100; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
         .tab-btn { padding: 10px 20px; font-weight: bold; border-bottom: 2px solid transparent; cursor: pointer; transition: 0.3s; color: #94a3b8; }
         .tab-btn.active { color: #ff7100; border-bottom-color: #ff7100; }
         .tab-content { display: none; padding-top: 20px; }
         .tab-content.active { display: block; }
-        
         .autocomplete-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; margin-top: 0.5rem; max-height: 250px; overflow-y: auto; z-index: 50; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
         .autocomplete-item { padding: 12px 16px; cursor: pointer; transition: 0.2s; border-bottom: 1px solid #334155; display: flex; flex-direction: column; }
         .autocomplete-item:last-child { border-bottom: none; }
         .autocomplete-item:hover { background: #334155; }
         .autocomplete-item .title { font-weight: bold; color: #fff; }
-        
         .autocomplete-dropdown::-webkit-scrollbar { width: 6px; }
         .autocomplete-dropdown::-webkit-scrollbar-track { background: transparent; }
         .autocomplete-dropdown::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
@@ -113,7 +103,7 @@
                 </div>
 
                 <div id="tab-builder" class="tab-content active">
-                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+                    <div class="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
                         <div class="md:col-span-1">
                             <label class="block text-sm text-slate-400 mb-1">שם החיפוש</label>
                             <input type="text" id="buildName" placeholder="למשל: נדלן בת ים" class="w-full bg-slate-900 border border-slate-700 focus:border-primary rounded-xl px-4 py-3 text-white outline-none smooth">
@@ -131,6 +121,10 @@
                             <label class="block text-sm text-slate-400 mb-1">עיר (מקושר ללמ"ס)</label>
                             <input list="citiesList" id="buildCity" placeholder="הקלד עיר..." class="w-full bg-slate-900 border border-slate-700 focus:border-primary rounded-xl px-4 py-3 text-white outline-none smooth">
                             <datalist id="citiesList"></datalist>
+                        </div>
+                        <div class="md:col-span-1">
+                            <label class="block text-sm text-slate-400 mb-1">מייל (אופציונלי)</label>
+                            <input type="email" id="buildEmail" placeholder="ברירת מחדל" class="w-full bg-slate-900 border border-slate-700 focus:border-primary rounded-xl px-4 py-3 text-white outline-none smooth">
                         </div>
                         <div class="md:col-span-2">
                             <label class="block text-sm text-slate-400 mb-1">מילת חיפוש חופשית</label>
@@ -156,8 +150,9 @@
 
                 <div id="tab-manual" class="tab-content">
                     <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
-                        <input type="text" id="manualName" placeholder="שם החיפוש (למשל: קורולה 2018)" class="md:col-span-4 bg-slate-900 border border-slate-700 focus:border-primary rounded-xl px-4 py-3 text-white outline-none smooth">
-                        <input type="text" id="manualUrl" placeholder="https://www.yad2.co.il/..." class="md:col-span-6 bg-slate-900 border border-slate-700 focus:border-primary rounded-xl px-4 py-3 text-white outline-none smooth ltr-text placeholder:text-right">
+                        <input type="text" id="manualName" placeholder="שם החיפוש" class="md:col-span-3 bg-slate-900 border border-slate-700 focus:border-primary rounded-xl px-4 py-3 text-white outline-none smooth">
+                        <input type="text" id="manualUrl" placeholder="https://www.yad2.co.il/..." class="md:col-span-4 bg-slate-900 border border-slate-700 focus:border-primary rounded-xl px-4 py-3 text-white outline-none smooth ltr-text placeholder:text-right">
+                        <input type="email" id="manualEmail" placeholder="מייל נמען (אופציונלי)" class="md:col-span-3 bg-slate-900 border border-slate-700 focus:border-primary rounded-xl px-4 py-3 text-white outline-none smooth ltr-text placeholder:text-right">
                         <button onclick="addManualProject()" class="md:col-span-2 bg-slate-700 hover:bg-primary text-white rounded-xl font-bold smooth">הוסף</button>
                     </div>
                 </div>
@@ -174,7 +169,7 @@
             GITHUB_USER: 'lilor159357',
             GITHUB_REPO: 'yad2-scraper',
             FILE_PATH: 'config.json',
-            GITHUB_CLIENT_ID: 'Ov23li4FWE7nhe3r0b3N'
+            GITHUB_CLIENT_ID: 'YOUR_GITHUB_CLIENT_ID_HERE'
         };
 
         let configData = { projects: [] };
@@ -189,7 +184,6 @@
             const spinner = document.getElementById('searchSpinner');
 
             if (query.length < 2) { dropdown.style.display = 'none'; return; }
-
             icon.classList.add('hidden'); spinner.classList.remove('hidden');
 
             clearTimeout(debounceTimer);
@@ -208,11 +202,7 @@
 
                     for (const [catKey, items] of Object.entries(suggestions)) {
                         if (items && items.length > 0 && catMap[catKey]) {
-                            html += `
-                                <div class="px-4 py-2 bg-slate-800 text-xs font-bold text-slate-400 flex items-center gap-2 border-b border-slate-700">
-                                    <i class="ph-fill ${catMap[catKey].icon} text-primary"></i> ${catMap[catKey].label}
-                                </div>
-                            `;
+                            html += `<div class="px-4 py-2 bg-slate-800 text-xs font-bold text-slate-400 flex items-center gap-2 border-b border-slate-700"><i class="ph-fill ${catMap[catKey].icon} text-primary"></i> ${catMap[catKey].label}</div>`;
                             items.forEach(item => {
                                 html += `<div class="autocomplete-item" onclick="selectSuggestion('${item.replace(/'/g, "\\'")}', '${catMap[catKey].val}')"><span class="title pr-6">${item}</span></div>`;
                             });
@@ -276,6 +266,7 @@
             const cat = document.getElementById('buildCat').value;
             const q = document.getElementById('buildQ').value.trim();
             const city = document.getElementById('buildCity').value.trim();
+            const email = document.getElementById('buildEmail').value.trim();
             const min = document.getElementById('buildMin').value.trim();
             const max = document.getElementById('buildMax').value.trim();
             
@@ -286,12 +277,9 @@
             
             if (q) params.append('q', q);
             
-            // שימוש במילון הגלובלי מתוך cities.js
             if (city && window.CITIES_DICT && window.CITIES_DICT[city]) {
                 params.append('city', window.CITIES_DICT[city]);
-            } else if (city) {
-                showToast(`שים לב: העיר '${city}' לא נמצאה במילון ולכן לא הוספה לסינון.`, 'error');
-            }
+            } else if (city) { showToast(`העיר '${city}' לא נמצאה.`, 'error'); }
 
             if (min || max) {
                 let priceStr = "";
@@ -302,10 +290,10 @@
             }
             
             url += params.toString();
-            configData.projects.unshift({ topic: name, url: url });
+            configData.projects.unshift({ topic: name, url: url, email: email || null });
             
             document.getElementById('buildName').value = ''; document.getElementById('buildQ').value = '';
-            document.getElementById('buildCity').value = '';
+            document.getElementById('buildCity').value = ''; document.getElementById('buildEmail').value = '';
             document.getElementById('buildMin').value = ''; document.getElementById('buildMax').value = '';
             
             renderList();
@@ -314,9 +302,10 @@
         const addManualProject = () => {
             const topic = document.getElementById('manualName').value.trim();
             const url = document.getElementById('manualUrl').value.trim();
+            const email = document.getElementById('manualEmail').value.trim();
             if (!topic || !url) return showToast('יש למלא שם ולינק', 'error');
-            configData.projects.unshift({ topic, url });
-            document.getElementById('manualName').value = ''; document.getElementById('manualUrl').value = '';
+            configData.projects.unshift({ topic, url, email: email || null });
+            document.getElementById('manualName').value = ''; document.getElementById('manualUrl').value = ''; document.getElementById('manualEmail').value = '';
             renderList();
         };
 
@@ -389,7 +378,10 @@
                             <h3 class="font-bold text-white text-lg">${p.topic}</h3>
                             ${p.disabled ? '<span class="bg-red-500/20 text-red-400 text-xs px-2 py-0.5 rounded flex-shrink-0">מושעה</span>' : '<span class="bg-green-500/20 text-green-400 text-xs px-2 py-0.5 rounded flex-shrink-0">פעיל</span>'}
                         </div>
-                        <p class="text-xs text-slate-400 ltr-text font-mono truncate" style="direction: ltr;">${p.url}</p>
+                        <p class="text-xs text-slate-400 ltr-text font-mono truncate" style="direction: ltr;">
+                            ${p.url}
+                        </p>
+                        ${p.email ? `<p class="text-sm mt-2 text-indigo-400 font-medium"><i class="ph-fill ph-envelope-simple"></i> התראות יישלחו אל: <span class="ltr-text inline-block">${p.email}</span></p>` : ''}
                     </div>
                     <div class="flex gap-2 flex-shrink-0">
                         <button onclick="toggleProject(${i})" class="bg-slate-900 border border-slate-700 text-slate-300 hover:text-white px-4 py-2 rounded-xl text-sm smooth w-20 text-center">
@@ -406,12 +398,10 @@
         const toggleProject = (i) => { configData.projects[i].disabled = !configData.projects[i].disabled; renderList(); };
 
         window.onload = async () => {
-            // פונקציה שממלאת את רשימת הערים
             const loadCitiesToUI = () => {
                 const datalist = document.getElementById('citiesList');
-                datalist.innerHTML = ''; // ניקוי הקיים
+                datalist.innerHTML = ''; 
                 if (window.CITIES_DICT) {
-                    // מיון אלפביתי של הערים
                     Object.keys(window.CITIES_DICT).sort().forEach(cityName => {
                         const option = document.createElement('option');
                         option.value = cityName;
@@ -419,11 +409,7 @@
                     });
                 }
             };
-
-            // טוען מיד את הערים שיש בגיבוי
             loadCitiesToUI();
-
-            // מאזין לאירוע של הסיום של fetch ממשרד הפנים ומרענן את הרשימה!
             window.addEventListener('citiesLoaded', loadCitiesToUI);
 
             const urlParams = new URLSearchParams(window.location.search);
@@ -437,4 +423,3 @@
     </script>
 </body>
 </html>
-            
