@@ -1,5 +1,11 @@
 {
   "telegramApiToken": null,
   "chatId": null,
-  "projects": []
+  "projects": [
+    {
+      "topic": "ספה",
+      "url": "https://www.yad2.co.il/market/search?q=%D7%A1%D7%A4%D7%94",
+      "email": null
+    }
+  ]
 }
