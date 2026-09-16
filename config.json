@@ -1,21 +1,5 @@
 {
   "telegramApiToken": null,
   "chatId": null,
-  "projects": [
-    {
-      "topic": "טור",
-      "url": "https://www.yad2.co.il/market/search?q=%D7%98%D7%95%D7%A8",
-      "email": "yonatanroz15@gmail.com"
-    },
-    {
-      "topic": "גמרא",
-      "url": "https://www.yad2.co.il/market/search?q=%D7%92%D7%9E%D7%A8%D7%90",
-      "email": "yonatanroz15@gmail.com"
-    },
-    {
-      "topic": "שס",
-      "url": "https://www.yad2.co.il/market/search?q=%D7%A9%D7%A1",
-      "email": "yonatanroz15@gmail.com"
-    }
-  ]
+  "projects": []
 }
